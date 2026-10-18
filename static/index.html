@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ấm Lòng Sài Gòn - Bản Đồ Ẩm Thực Đường Phố Q.1 - Q.3 - Q.10</title>
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon">🍲</div>
+        <div class="brand-text">
+          <h1>Ấm Lòng Sài Gòn</h1>
+          <p class="tagline">Bản đồ ẩm thực hè phố nghĩa tình &bull; Quận 1 - Quận 3 - Quận 10</p>
+        </div>
+      </div>
+
+      <!-- District Quick Filter Pills -->
+      <div class="district-pills" id="district-filters">
+        <button class="pill active" data-district="Tất cả">
+          <span>Tất cả</span>
+          <span class="count-badge" id="count-all">12</span>
+        </button>
+        <button class="pill" data-district="Quận 1">
+          <span>Quận 1</span>
+          <span class="count-badge" id="count-q1">4</span>
+        </button>
+        <button class="pill" data-district="Quận 3">
+          <span>Quận 3</span>
+          <span class="count-badge" id="count-q3">4</span>
+        </button>
+        <button class="pill" data-district="Quận 10">
+          <span>Quận 10</span>
+          <span class="count-badge" id="count-q10">4</span>
+        </button>
+      </div>
+
+      <!-- Header Actions -->
+      <div class="header-actions">
+        <button id="btn-owner-mode" class="btn btn-outline" title="Chế độ Chủ web để thêm/sửa quán">
+          <span class="icon">🔑</span>
+          <span>Chủ Web / Admin</span>
+        </button>
+        <button id="btn-view-toggle" class="btn btn-secondary mobile-only" title="Đổi qua lại bản đồ / danh sách">
+          <span class="icon">🗺️</span>
+          <span id="view-toggle-text">Bản đồ</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Filter & Search Bar -->
+  <section class="filter-bar">
+    <div class="filter-container">
+      <!-- Search Input -->
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Tìm món ăn, tên cô chú, đường, hẻm (vd: bánh mì, hủ tiếu, chuối nướng...)...">
+        <button id="search-clear" class="clear-btn" style="display: none;">&times;</button>
+      </div>
+
+      <!-- Food Category Scroll Bar -->
+      <div class="category-scroll" id="category-filters">
+        <button class="cat-chip active" data-category="Tất cả">🍽️ Tất cả món</button>
+        <button class="cat-chip" data-category="Bánh mì">🥖 Bánh mì</button>
+        <button class="cat-chip" data-category="Hủ tiếu / Bún">🍜 Hủ tiếu / Bún</button>
+        <button class="cat-chip" data-category="Cơm / Bột chiên">🍳 Cơm / Bột chiên</button>
+        <button class="cat-chip" data-category="Chè / Tráng miệng">🥣 Chè / Tráng miệng</button>
+        <button class="cat-chip" data-category="Bánh tráng / Ăn vặt">🌯 Bánh tráng / Ăn vặt</button>
+        <button class="cat-chip" data-category="Khác">🍢 Món khác</button>
+      </div>
+
+      <!-- Quick Toggles: Open Now & Price -->
+      <div class="quick-options">
+        <label class="toggle-control" title="Chỉ hiển thị các xe/quán đang trong khung giờ mở cửa lúc này">
+          <input type="checkbox" id="filter-open-now">
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">
+            <span class="status-dot online"></span>
+            Đang mở cửa
+          </span>
+        </label>
+
+        <select id="sort-select" class="custom-select" title="Sắp xếp kết quả">
+          <option value="default">✨ Gợi ý mặc định</option>
+          <option value="rating">⭐ Đánh giá cao nhất</option>
+          <option value="price-asc">💵 Giá thấp đến cao</option>
+          <option value="price-desc">💎 Giá cao đến thấp</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Dual Pane View -->
+  <main class="main-layout">
+    <!-- Left Pane: Interactive Map -->
+    <div class="map-pane" id="map-container">
+      <div id="map"></div>
+
+      <!-- Map Floating Overlay Controls -->
+      <div class="map-controls">
+        <button id="btn-locate-me" class="map-control-btn" title="Định vị vị trí của tôi">
+          <span>🎯</span> Vị trí của tôi
+        </button>
+        <button id="btn-reset-map" class="map-control-btn" title="Toàn cảnh Q1 - Q3 - Q10">
+          <span>🏙️</span> Về trung tâm Q1-3-10
+        </button>
+      </div>
+
+      <!-- Coordinate Picker Banner (Active when owner is picking location) -->
+      <div id="map-picker-banner" class="map-picker-banner" style="display: none;">
+        <span>📍 <strong>Đang chọn tọa độ:</strong> Hãy nhấp chuột vào vị trí bất kỳ trên bản đồ</span>
+        <button id="btn-cancel-picker" class="btn btn-sm btn-light">Hủy</button>
+      </div>
+
+      <!-- Map Legend -->
+      <div class="map-legend">
+        <span class="legend-item"><span class="legend-dot d1"></span> Q.1</span>
+        <span class="legend-item"><span class="legend-dot d3"></span> Q.3</span>
+        <span class="legend-item"><span class="legend-dot d10"></span> Q.10</span>
+      </div>
+    </div>
+
+    <!-- Right Pane: Vendor Cards Feed -->
+    <div class="list-pane" id="list-container">
+      <div class="list-header">
+        <div class="list-title-wrap">
+          <h2 id="list-title">Điểm Bán Hè Phố</h2>
+          <span class="badge badge-light" id="results-count">12 quán</span>
+        </div>
+        <div id="admin-banner-indicator" class="admin-indicator" style="display: none;">
+          <span>🛠️ Chế độ Chủ Web đang bật</span>
+          <button id="btn-add-vendor-top" class="btn btn-sm btn-primary">+ Thêm điểm bán mới</button>
+        </div>
+      </div>
+
+      <!-- Cards Grid -->
+      <div class="vendor-grid" id="vendor-grid">
+        <!-- Rendered by app.js -->
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <p>Đang tải bản đồ ẩm thực đường phố Sài Gòn...</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODAL: Vendor Details & Reviews -->
+  <div class="modal-backdrop" id="vendor-modal" style="display: none;">
+    <div class="modal-card">
+      <button class="modal-close" id="modal-close-btn">&times;</button>
+      
+      <div class="modal-cover">
+        <img id="modal-img" src="" alt="Món ăn">
+        <div class="modal-cover-overlay">
+          <span class="badge badge-district" id="modal-district">Quận 1</span>
+          <span class="badge badge-category" id="modal-category">Bánh mì</span>
+          <span class="badge" id="modal-status-badge">Đang mở</span>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <h2 id="modal-name" class="modal-title">Tên quán</h2>
+        <div class="modal-rating-row">
+          <span class="stars" id="modal-stars">★★★★★</span>
+          <span class="rating-num" id="modal-rating-num">5.0</span>
+          <span class="review-count" id="modal-review-count">(3 lời chúc)</span>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-icon">📍</span>
+            <div>
+              <strong>Địa chỉ:</strong>
+              <p id="modal-address">123 Đường...</p>
+            </div>
+          </div>
+          <div class="info-item">
+            <span class="info-icon">⏰</span>
+            <div>
+              <strong>Giờ mở cửa:</strong>
+              <p id="modal-hours">06:00 - 11:30</p>
+            </div>
+          </div>
+          <div class="info-item">
+            <span class="info-icon">💵</span>
+            <div>
+              <strong>Khoảng giá:</strong>
+              <p id="modal-price">15.000đ - 30.000đ</p>
+            </div>
+          </div>
+          <div class="info-item">
+            <span class="info-icon">📞</span>
+            <div>
+              <strong>Liên hệ:</strong>
+              <p id="modal-phone">Không có</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Vendor Story -->
+        <div class="story-box">
+          <div class="story-header">
+            <span class="heart-icon">❤️</span>
+            <strong>Hoàn cảnh & Câu chuyện mưu sinh</strong>
+          </div>
+          <p id="modal-story">Nội dung câu chuyện...</p>
+        </div>
+
+        <!-- Dishes / Menu -->
+        <div class="menu-box">
+          <h3>🍴 Món đặc trưng & Giá tham khảo</h3>
+          <div id="modal-dishes-list" class="dishes-tags"></div>
+        </div>
+
+        <!-- Navigation & Action Buttons -->
+        <div class="modal-actions-bar">
+          <button id="modal-btn-directions" class="btn btn-primary btn-lg">
+            <span>🧭</span> Chỉ đường đi ngay
+          </button>
+          <button id="modal-btn-open-review" class="btn btn-outline btn-lg">
+            <span>✍️</span> Viết lời chúc / Đánh giá
+          </button>
+        </div>
+
+        <!-- Community Reviews Box -->
+        <div class="reviews-section">
+          <div class="reviews-head">
+            <h3>💌 Lời chúc & Nhận xét từ thực khách (<span id="reviews-total-count">0</span>)</h3>
+          </div>
+          <div class="reviews-list" id="modal-reviews-list">
+            <!-- Rendered by app.js -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Directions & Navigation -->
+  <div class="modal-backdrop" id="directions-modal" style="display: none;">
+    <div class="modal-card modal-sm">
+      <button class="modal-close" id="directions-close-btn">&times;</button>
+      <div class="modal-body text-center">
+        <div class="direction-icon-wrap">🧭</div>
+        <h2 id="direction-vendor-name" class="modal-title">Chỉ đường đến quán</h2>
+        <p class="text-muted" id="direction-vendor-address">Địa chỉ...</p>
+
+        <div class="distance-metric-box">
+          <div class="metric-col">
+            <span class="metric-label">Khoảng cách ước tính</span>
+            <span class="metric-value" id="direction-distance">~ 1.8 km</span>
+          </div>
+          <div class="metric-col">
+            <span class="metric-label">Thời gian xe máy</span>
+            <span class="metric-value" id="direction-time">~ 5 - 8 phút</span>
+          </div>
+        </div>
+
+        <div class="direction-options">
+          <a id="btn-google-maps" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-block">
+            <span>🗺️</span> Mở Google Maps chỉ đường
+          </a>
+          <a id="btn-osm-maps" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-block">
+            <span>📍</span> Mở OpenStreetMap
+          </a>
+        </div>
+        <p class="tip-text">💡 <em>Mẹo: Nếu quán ở trong hẻm sâu, bạn có thể hỏi người dân đầu hẻm xe bánh mì/hủ tiếu của cô chú nhé!</em></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Add Review Box -->
+  <div class="modal-backdrop" id="review-modal" style="display: none;">
+    <div class="modal-card modal-sm">
+      <button class="modal-close" id="review-close-btn">&times;</button>
+      <div class="modal-body">
+        <h2 class="modal-title text-center">💖 Gửi Đánh Giá & Lời Chúc</h2>
+        <p class="text-center text-muted" id="review-vendor-title">Ủng hộ cô chú</p>
+
+        <form id="review-form">
+          <input type="hidden" id="review-vendor-id">
+
+          <!-- Star Rating Picker -->
+          <div class="form-group text-center">
+            <label class="form-label">Mức độ hài lòng của bạn</label>
+            <div class="star-picker" id="star-picker">
+              <span class="star-choice active" data-rating="1">★</span>
+              <span class="star-choice active" data-rating="2">★</span>
+              <span class="star-choice active" data-rating="3">★</span>
+              <span class="star-choice active" data-rating="4">★</span>
+              <span class="star-choice active" data-rating="5">★</span>
+            </div>
+            <div id="star-desc" class="star-desc">5 sao - Rất tuyệt vời, ủng hộ hết mình!</div>
+            <input type="hidden" id="review-rating" value="5">
+          </div>
+
+          <!-- Quick tag chips -->
+          <div class="form-group">
+            <label class="form-label">Chọn nhanh cảm nhận:</label>
+            <div class="tag-picker" id="review-tag-picker">
+              <button type="button" class="tag-pill" data-tag="Ngon bổ rẻ">Ngon bổ rẻ</button>
+              <button type="button" class="tag-pill" data-tag="Cô chú dễ thương">Cô chú dễ thương</button>
+              <button type="button" class="tag-pill" data-tag="Ủng hộ hết mình">Ủng hộ hết mình</button>
+              <button type="button" class="tag-pill" data-tag="Vệ sinh sạch sẽ">Vệ sinh sạch sẽ</button>
+              <button type="button" class="tag-pill" data-tag="Hương vị tuổi thơ">Hương vị tuổi thơ</button>
+              <button type="button" class="tag-pill" data-tag="Rau tươi nước dùng ngọt">Rau tươi nước dùng ngọt</button>
+            </div>
+            <input type="hidden" id="review-tags" value="">
+          </div>
+
+          <!-- Author Name -->
+          <div class="form-group">
+            <label for="review-author" class="form-label">Tên hoặc biệt danh của bạn:</label>
+            <input type="text" id="review-author" class="form-input" placeholder="Ví dụ: Hoàng Long, Bạn trẻ Sài Gòn..." value="Thực khách ấm lòng">
+          </div>
+
+          <!-- Comment -->
+          <div class="form-group">
+            <label for="review-comment" class="form-label">Lời chúc hoặc cảm nhận chi tiết:</label>
+            <textarea id="review-comment" class="form-textarea" rows="3" placeholder="Chia sẻ cảm nhận về món ăn, thái độ bán hàng, động viên cô chú..." required></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-block" id="btn-submit-review">
+              <span>💌</span> Gửi Lời Chúc Ngay
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Owner / Admin Management (Fill Info, Add/Edit Vendor) -->
+  <div class="modal-backdrop" id="admin-modal" style="display: none;">
+    <div class="modal-card modal-lg">
+      <button class="modal-close" id="admin-close-btn">&times;</button>
+      <div class="modal-body">
+        <div class="admin-modal-header">
+          <div class="admin-badge">🔑 Quản Trị Viên</div>
+          <h2 id="admin-modal-title" class="modal-title">Thêm Điểm Bán Hè Phố Mới</h2>
+          <p class="text-muted">Nhập thông tin người bán rong, món ăn, giờ mở cửa và vị trí trên bản đồ.</p>
+        </div>
+
+        <form id="admin-vendor-form">
+          <input type="hidden" id="admin-vendor-id" value="">
+
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label for="admin-name" class="form-label">Tên quán / Tên cô chú: *</label>
+              <input type="text" id="admin-name" class="form-input" placeholder="Ví dụ: Xe Bánh Mì Cụ Bà 80 Tuổi Cô Giang" required>
+            </div>
+            <div class="form-group flex-1">
+              <label for="admin-category" class="form-label">Loại món ăn: *</label>
+              <select id="admin-category" class="form-input" required>
+                <option value="Bánh mì">Bánh mì</option>
+                <option value="Hủ tiếu / Bún">Hủ tiếu / Bún</option>
+                <option value="Cơm / Bột chiên">Cơm / Bột chiên</option>
+                <option value="Chè / Tráng miệng">Chè / Tráng miệng</option>
+                <option value="Bánh tráng / Ăn vặt">Bánh tráng / Ăn vặt</option>
+                <option value="Khác">Khác</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="admin-district" class="form-label">Khu vực Quận: *</label>
+              <select id="admin-district" class="form-input" required>
+                <option value="Quận 1">Quận 1</option>
+                <option value="Quận 3">Quận 3</option>
+                <option value="Quận 10">Quận 10</option>
+              </select>
+            </div>
+            <div class="form-group flex-2">
+              <label for="admin-address" class="form-label">Địa chỉ hè phố / Hẻm cụ thể: *</label>
+              <input type="text" id="admin-address" class="form-input" placeholder="Ví dụ: Đầu hẻm 84 Cô Giang, P. Cầu Ông Lãnh, Quận 1" required>
+            </div>
+          </div>
+
+          <!-- Map Coordinates Picker -->
+          <div class="form-group highlight-box">
+            <div class="coord-header">
+              <label class="form-label mb-0">Tọa độ trên Bản Đồ (Vĩ độ / Kinh độ): *</label>
+              <button type="button" id="btn-pick-from-map" class="btn btn-sm btn-outline">
+                <span>📍</span> Bấm chọn vị trí trên bản đồ
+              </button>
+            </div>
+            <div class="form-row mt-2">
+              <div class="form-group flex-1 mb-0">
+                <input type="number" step="0.000001" id="admin-lat" class="form-input" placeholder="Vĩ độ (Latitude, vd: 10.7765)" required>
+              </div>
+              <div class="form-group flex-1 mb-0">
+                <input type="number" step="0.000001" id="admin-lng" class="form-input" placeholder="Kinh độ (Longitude, vd: 106.6853)" required>
+              </div>
+            </div>
+            <small class="text-muted">Gợi ý: Bạn có thể nhấn nút "Bấm chọn vị trí trên bản đồ" rồi nhấp chuột vào vị trí bất kỳ trên bản đồ Sài Gòn để tự điền tọa độ chính xác!</small>
+          </div>
+
+          <!-- Opening Hours -->
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label class="form-label">Giờ mở ca 1 (Sáng/Chiều): *</label>
+              <div class="time-range">
+                <input type="time" id="admin-open-1" class="form-input" value="06:00" required>
+                <span>đến</span>
+                <input type="time" id="admin-close-1" class="form-input" value="11:30" required>
+              </div>
+            </div>
+            <div class="form-group flex-1">
+              <label class="form-label">Giờ mở ca 2 (Tối - nếu có):</label>
+              <div class="time-range">
+                <input type="time" id="admin-open-2" class="form-input" value="">
+                <span>đến</span>
+                <input type="time" id="admin-close-2" class="form-input" value="">
+              </div>
+            </div>
+          </div>
+
+          <!-- Price & Phone -->
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="admin-price-min" class="form-label">Giá từ (VNĐ):</label>
+              <input type="number" step="1000" id="admin-price-min" class="form-input" value="15000">
+            </div>
+            <div class="form-group flex-1">
+              <label for="admin-price-max" class="form-label">Đến giá (VNĐ):</label>
+              <input type="number" step="1000" id="admin-price-max" class="form-input" value="35000">
+            </div>
+            <div class="form-group flex-1">
+              <label for="admin-phone" class="form-label">Số ĐT (nếu có):</label>
+              <input type="text" id="admin-phone" class="form-input" placeholder="0908 xxx xxx">
+            </div>
+          </div>
+
+          <!-- Signature Dishes -->
+          <div class="form-group">
+            <label for="admin-dishes" class="form-label">Món đặc trưng & Giá tiền (ngăn cách bằng dấu phẩy):</label>
+            <input type="text" id="admin-dishes" class="form-input" placeholder="Ví dụ: Bánh mì pate chả lụa (22k), Xíu mại trứng cút (20k)">
+          </div>
+
+          <!-- Story / Background -->
+          <div class="form-group">
+            <label for="admin-story" class="form-label">Hoàn cảnh mưu sinh / Câu chuyện của cô chú: *</label>
+            <textarea id="admin-story" class="form-textarea" rows="3" placeholder="Chia sẻ đôi nét về hoàn cảnh của người bán rong để cộng đồng cùng đồng cảm và ủng hộ..." required></textarea>
+          </div>
+
+          <!-- Image URL with presets -->
+          <div class="form-group">
+            <label for="admin-image" class="form-label">Hình ảnh minh họa món ăn:</label>
+            <input type="url" id="admin-image" class="form-input" placeholder="https://images.unsplash.com/...">
+            <div class="image-preset-picker">
+              <span>Chọn nhanh mẫu:</span>
+              <button type="button" class="preset-btn" data-url="https://images.unsplash.com/photo-1626804475297-41608ea09aeb?w=600&auto=format&fit=crop&q=80">Bánh mì</button>
+              <button type="button" class="preset-btn" data-url="https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=600&auto=format&fit=crop&q=80">Hủ tiếu</button>
+              <button type="button" class="preset-btn" data-url="https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600&auto=format&fit=crop&q=80">Bột chiên</button>
+              <button type="button" class="preset-btn" data-url="https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&auto=format&fit=crop&q=80">Chuối nướng / Chè</button>
+              <button type="button" class="preset-btn" data-url="https://images.unsplash.com/photo-1555126634-323283e090fa?w=600&auto=format&fit=crop&q=80">Bánh tráng</button>
+            </div>
+          </div>
+
+          <div class="admin-form-actions">
+            <button type="button" id="admin-cancel-btn" class="btn btn-secondary">Đóng</button>
+            <button type="submit" class="btn btn-primary" id="admin-submit-btn">💾 Lưu Thông Tin Quán</button>
+          </div>
+        </form>
+
+        <hr class="divider">
+
+        <!-- Admin Utilities -->
+        <div class="admin-utils">
+          <span>Khôi phục dữ liệu ban đầu:</span>
+          <button type="button" id="btn-reset-db" class="btn btn-sm btn-danger">↺ Reset 12 Quán Mặc Định</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="app.js"></script>
+</body>
+</html>
