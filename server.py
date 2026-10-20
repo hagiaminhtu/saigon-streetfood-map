@@ -10,7 +10,8 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler
 import database
 
 PORT = 8080
-STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = BASE_DIR if os.path.exists(os.path.join(BASE_DIR, "index.html")) else os.path.join(BASE_DIR, "static")
 
 
 class StreetFoodHandler(SimpleHTTPRequestHandler):

@@ -34,9 +34,16 @@
 
 ---
 
-## 🚀 Hướng Dẫn Khởi Động
+## 🌐 Trải Nghiệm Trực Tiếp (GitHub Pages)
 
-Chỉ cần Python 3 (sẵn có trên máy, không cần cài thêm bất kỳ thư viện pip nào):
+Ứng dụng đã được cấu hình chạy trực tiếp trên **GitHub Pages** không cần cài đặt:
+👉 **https://hagiaminhtu.github.io/saigon-streetfood-map/**
+
+---
+
+## 🚀 Hướng Dẫn Khởi Động Trên Máy Cục Bộ (Local)
+
+Chỉ cần Python 3 (sẵn có trên máy macOS, không cần cài thêm bất kỳ thư viện pip nào):
 
 ```bash
 cd /Users/hgmt/.gemini/antigravity/scratch/saigon-streetfood-map

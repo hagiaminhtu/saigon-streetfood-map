@@ -218,24 +218,60 @@ function renderMarkers() {
   }
 }
 
-// ================= DATA LOADING =================
-async function loadVendors() {
+// ================= DATA LOADING (HYBRID API & LOCAL STORAGE) =================
+const STORAGE_KEY = "saigon_streetfood_vendors_v1";
+
+function getLocalVendors() {
   try {
-    const res = await fetch("/api/vendors");
-    const data = await res.json();
-    if (data.success) {
-      state.vendors = data.vendors;
-      updateDistrictCounts();
-      applyFilters();
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
-  } catch (err) {
-    console.error("Failed to load vendors:", err);
-    document.getElementById("vendor-grid").innerHTML = `
-      <div class="empty-state">
-        <p>⚠️ Không thể tải dữ liệu điểm bán hè phố. Vui lòng thử lại sau.</p>
-      </div>
-    `;
+  } catch (e) {
+    console.warn("Error reading localStorage:", e);
   }
+  const defaults = window.INITIAL_VENDORS || [];
+  saveLocalVendors(defaults);
+  return JSON.parse(JSON.stringify(defaults));
+}
+
+function saveLocalVendors(vendors) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(vendors));
+  } catch (e) {
+    console.warn("Error saving to localStorage:", e);
+  }
+}
+
+async function loadVendors() {
+  // If running on static host (like GitHub Pages or file://)
+  const isStaticHost =
+    window.location.protocol === "file:" ||
+    window.location.hostname.endsWith("github.io") ||
+    (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1");
+
+  if (!isStaticHost) {
+    try {
+      const res = await fetch("/api/vendors");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.vendors) && data.vendors.length > 0) {
+          state.vendors = data.vendors;
+          updateDistrictCounts();
+          applyFilters();
+          return;
+        }
+      }
+    } catch (err) {
+      console.log("Backend API not reachable, falling back to local storage:", err);
+    }
+  }
+
+  // Fallback to local storage / static embedded data
+  state.vendors = getLocalVendors();
+  updateDistrictCounts();
+  applyFilters();
 }
 
 function updateDistrictCounts() {
@@ -458,13 +494,25 @@ function highlightCard(vendorId) {
 
 // 1. Vendor Details Modal
 window.viewVendorDetail = async function (vendorId) {
+  let v = null;
   try {
     const res = await fetch(`/api/vendors/${vendorId}`);
-    const data = await res.json();
-    if (!data.success || !data.vendor) return;
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.vendor) {
+        v = data.vendor;
+      }
+    }
+  } catch (e) {}
 
-    const v = data.vendor;
-    state.selectedVendorId = v.id;
+  if (!v) {
+    const localVendors = getLocalVendors();
+    v = localVendors.find((item) => item.id == vendorId) || state.vendors.find((item) => item.id == vendorId);
+  }
+
+  if (!v) return;
+
+  state.selectedVendorId = v.id;
 
     // Pan map to vendor location
     if (state.map) {
@@ -663,13 +711,27 @@ window.deleteVendor = async function (vendorId) {
   }
 
   try {
-    const res = await fetch(`/api/vendors/${vendorId}`, { method: "DELETE" });
-    const data = await res.json();
-    if (data.success) {
+    let isDeleted = false;
+    try {
+      const res = await fetch(`/api/vendors/${vendorId}`, { method: "DELETE" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) isDeleted = true;
+      }
+    } catch (e) {}
+
+    if (!isDeleted) {
+      let vendors = getLocalVendors();
+      vendors = vendors.filter((item) => item.id != vendorId);
+      saveLocalVendors(vendors);
+      isDeleted = true;
+    }
+
+    if (isDeleted) {
       showToast("Đã xóa điểm bán thành công!");
       await loadVendors();
     } else {
-      alert("Lỗi xóa: " + (data.error || "Không thể xóa"));
+      alert("Không thể xóa điểm bán.");
     }
   } catch (err) {
     console.error("Delete error:", err);
@@ -861,30 +923,62 @@ function initEventListeners() {
     };
 
     try {
-      let res;
-      if (id) {
-        // Update existing
-        res = await fetch(`/api/vendors/${id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-      } else {
-        // Create new
-        res = await fetch("/api/vendors", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
+      let isSaved = false;
+      try {
+        let res;
+        if (id) {
+          // Update existing
+          res = await fetch(`/api/vendors/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+        } else {
+          // Create new
+          res = await fetch("/api/vendors", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+        }
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) isSaved = true;
+        }
+      } catch (e) {}
+
+      if (!isSaved) {
+        // LocalStorage fallback
+        const vendors = getLocalVendors();
+        if (id) {
+          const idx = vendors.findIndex((item) => item.id == id);
+          if (idx !== -1) {
+            vendors[idx] = { ...vendors[idx], ...payload, id: parseInt(id, 10) || vendors[idx].id };
+            saveLocalVendors(vendors);
+            isSaved = true;
+          }
+        } else {
+          const newId = Date.now();
+          const newVendor = {
+            ...payload,
+            id: newId,
+            review_count: 0,
+            avg_rating: 5.0,
+            reviews: [],
+            created_at: new Date().toISOString()
+          };
+          vendors.unshift(newVendor);
+          saveLocalVendors(vendors);
+          isSaved = true;
+        }
       }
 
-      const data = await res.json();
-      if (data.success) {
+      if (isSaved) {
         document.getElementById("admin-modal").style.display = "none";
         showToast(id ? "Đã cập nhật quán thành công!" : "Đã thêm điểm bán mới thành công!");
         await loadVendors();
       } else {
-        alert("Lỗi: " + (data.error || "Không thể lưu"));
+        alert("Đã xảy ra lỗi khi lưu thông tin quán.");
       }
     } catch (err) {
       console.error("Save error:", err);
@@ -894,12 +988,25 @@ function initEventListeners() {
 
   // Admin DB Reset Button
   document.getElementById("btn-reset-db").addEventListener("click", async () => {
-    if (confirm("Bạn có chắc muốn khôi phục về 12 quán mặc định ban đầu không? Dữ liệu bạn thêm sẽ bị xóa.")) {
+    if (confirm("Bạn có chắc muốn khôi phục về các quán mặc định ban đầu không? Dữ liệu bạn thêm sẽ bị xóa.")) {
       try {
-        const res = await fetch("/api/reset", { method: "POST" });
-        const data = await res.json();
-        if (data.success) {
-          showToast(data.message);
+        let isReset = false;
+        try {
+          const res = await fetch("/api/reset", { method: "POST" });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success) isReset = true;
+          }
+        } catch (e) {}
+
+        if (!isReset) {
+          const defaults = window.INITIAL_VENDORS || [];
+          saveLocalVendors(defaults);
+          isReset = true;
+        }
+
+        if (isReset) {
+          showToast("Đã khôi phục dữ liệu ban đầu!");
           document.getElementById("admin-modal").style.display = "none";
           await loadVendors();
         }
@@ -963,13 +1070,44 @@ function initEventListeners() {
     };
 
     try {
-      const res = await fetch(`/api/vendors/${vendorId}/reviews`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (data.success) {
+      let isSaved = false;
+      try {
+        const res = await fetch(`/api/vendors/${vendorId}/reviews`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) isSaved = true;
+        }
+      } catch (e) {}
+
+      if (!isSaved) {
+        // LocalStorage fallback
+        const vendors = getLocalVendors();
+        const v = vendors.find((item) => item.id == vendorId);
+        if (v) {
+          if (!v.reviews) v.reviews = [];
+          const newReview = {
+            id: Date.now(),
+            vendor_id: parseInt(vendorId, 10),
+            author: payload.author || "Thực khách ấm lòng",
+            rating: payload.rating || 5,
+            comment: payload.comment,
+            tags: payload.tags || "",
+            created_at: new Date().toISOString()
+          };
+          v.reviews.unshift(newReview);
+          v.review_count = v.reviews.length;
+          const sum = v.reviews.reduce((acc, r) => acc + (r.rating || 5), 0);
+          v.avg_rating = sum / v.reviews.length;
+          saveLocalVendors(vendors);
+          isSaved = true;
+        }
+      }
+
+      if (isSaved) {
         document.getElementById("review-modal").style.display = "none";
         showToast("Cảm ơn bạn đã gửi lời chúc và ủng hộ cô chú! ❤️");
         await loadVendors();
@@ -977,7 +1115,7 @@ function initEventListeners() {
           window.viewVendorDetail(vendorId);
         }
       } else {
-        alert("Lỗi: " + (data.error || "Không thể gửi đánh giá"));
+        alert("Không thể lưu đánh giá.");
       }
     } catch (err) {
       console.error("Submit review error:", err);
