@@ -91,7 +91,7 @@ function initMap() {
   });
 
   // Try auto-detecting user location gently
-  if ("geolocation" in navigator) {
+  if (typeof navigator !== "undefined" && navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         state.userLocation = {
@@ -494,25 +494,26 @@ function highlightCard(vendorId) {
 
 // 1. Vendor Details Modal
 window.viewVendorDetail = async function (vendorId) {
-  let v = null;
   try {
-    const res = await fetch(`/api/vendors/${vendorId}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.success && data.vendor) {
-        v = data.vendor;
+    let v = null;
+    try {
+      const res = await fetch(`/api/vendors/${vendorId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.vendor) {
+          v = data.vendor;
+        }
       }
+    } catch (e) {}
+
+    if (!v) {
+      const localVendors = getLocalVendors();
+      v = localVendors.find((item) => item.id == vendorId) || state.vendors.find((item) => item.id == vendorId);
     }
-  } catch (e) {}
 
-  if (!v) {
-    const localVendors = getLocalVendors();
-    v = localVendors.find((item) => item.id == vendorId) || state.vendors.find((item) => item.id == vendorId);
-  }
+    if (!v) return;
 
-  if (!v) return;
-
-  state.selectedVendorId = v.id;
+    state.selectedVendorId = v.id;
 
     // Pan map to vendor location
     if (state.map) {
