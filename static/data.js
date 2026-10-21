@@ -1,5 +1,28 @@
 window.INITIAL_VENDORS = [
   {
+    "id": 15,
+    "name": "Bánh quê bà cụ",
+    "category": "Chè / Tráng miệng",
+    "district": "Quận 1",
+    "address": "148 Trần Hưng Đạo, Phường Cầu Ông Lãnh, Quận 1",
+    "latitude": 10.7645,
+    "longitude": 106.6938,
+    "open_time": "17:00",
+    "close_time": "23:00",
+    "open_time_2": "",
+    "close_time_2": "",
+    "price_min": 10000,
+    "price_max": 50000,
+    "story": "Cụ bà già yếu khoảng tầm trên 80 tuổi, cụ rất sởi lởi mời ăn bánh thử. Cụ ngồi ở góc đường gần đèn xanh đèn đỏ.",
+    "dishes": "Bánh quê truyền thống: Bánh bò thốt nốt, bánh da lợn, bánh chuối hấp, bánh khoai mì",
+    "phone": "",
+    "image_url": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&auto=format&fit=crop&q=80",
+    "created_at": "2026-10-21 10:32:19",
+    "review_count": 0,
+    "avg_rating": 5.0,
+    "reviews": []
+  },
+  {
     "id": 14,
     "name": "Bánh Mì Chả Cá Chú Út",
     "category": "Bánh mì",

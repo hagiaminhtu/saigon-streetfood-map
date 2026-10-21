@@ -164,7 +164,7 @@
       <button class="modal-close" id="modal-close-btn">&times;</button>
       
       <div class="modal-cover">
-        <img id="modal-img" src="" alt="Món ăn">
+        <img id="modal-img" src="" alt="Món ăn" onerror="this.src='https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600'">
         <div class="modal-cover-overlay">
           <span class="badge badge-district" id="modal-district">Quận 1</span>
           <span class="badge badge-category" id="modal-category">Bánh mì</span>
@@ -480,9 +480,18 @@
         <hr class="divider">
 
         <!-- Admin Utilities -->
-        <div class="admin-utils">
-          <span>Khôi phục dữ liệu ban đầu:</span>
-          <button type="button" id="btn-reset-db" class="btn btn-sm btn-danger">↺ Reset 12 Quán Mặc Định</button>
+        <div class="admin-utils" style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <span style="font-size: 0.9rem; font-weight: 500;">Đồng bộ giữa các thiết bị:</span>
+            <div style="display: flex; gap: 6px;">
+              <button type="button" id="btn-export-data" class="btn btn-sm btn-secondary" title="Sao chép toàn bộ dữ liệu">📋 Sao chép dữ liệu</button>
+              <button type="button" id="btn-import-data" class="btn btn-sm btn-secondary" title="Dán dữ liệu từ máy khác">📥 Nhập dữ liệu</button>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <span style="font-size: 0.9rem; font-weight: 500;">Khôi phục dữ liệu ban đầu:</span>
+            <button type="button" id="btn-reset-db" class="btn btn-sm btn-danger">↺ Reset Quán Mặc Định</button>
+          </div>
         </div>
       </div>
     </div>

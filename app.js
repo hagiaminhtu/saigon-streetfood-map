@@ -222,16 +222,30 @@ function renderMarkers() {
 const STORAGE_KEY = "saigon_streetfood_vendors_v1";
 
 function getLocalVendors() {
+  const defaults = window.INITIAL_VENDORS || [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Merge any new default vendors that don't exist yet in localStorage
+        const existingIds = new Set(parsed.map((v) => v.id));
+        let hasNew = false;
+        defaults.forEach((d) => {
+          if (!existingIds.has(d.id)) {
+            parsed.unshift(d);
+            hasNew = true;
+          }
+        });
+        if (hasNew) {
+          saveLocalVendors(parsed);
+        }
+        return parsed;
+      }
     }
   } catch (e) {
     console.warn("Error reading localStorage:", e);
   }
-  const defaults = window.INITIAL_VENDORS || [];
   saveLocalVendors(defaults);
   return JSON.parse(JSON.stringify(defaults));
 }
@@ -521,7 +535,11 @@ window.viewVendorDetail = async function (vendorId) {
     }
 
     // Populate modal
-    document.getElementById("modal-img").src = v.image_url;
+    const modalImg = document.getElementById("modal-img");
+    modalImg.src = v.image_url || "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600";
+    modalImg.onerror = function () {
+      this.src = "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600";
+    };
     document.getElementById("modal-name").textContent = v.name;
     document.getElementById("modal-district").textContent = v.district;
     document.getElementById("modal-category").textContent = `${CATEGORY_ICONS[v.category] || ""} ${v.category}`;
@@ -1016,6 +1034,47 @@ function initEventListeners() {
       }
     }
   });
+
+  // Admin Export Data (Copy to Clipboard)
+  const btnExport = document.getElementById("btn-export-data");
+  if (btnExport) {
+    btnExport.addEventListener("click", () => {
+      const dataStr = JSON.stringify(state.vendors, null, 2);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(dataStr).then(() => {
+          showToast("📋 Đã sao chép toàn bộ dữ liệu vào Clipboard!");
+        }).catch(() => {
+          prompt("Sao chép dữ liệu bên dưới (nhấn Cmd+C hoặc Ctrl+C):", dataStr);
+        });
+      } else {
+        prompt("Sao chép dữ liệu bên dưới (nhấn Cmd+C hoặc Ctrl+C):", dataStr);
+      }
+    });
+  }
+
+  // Admin Import Data (Paste JSON)
+  const btnImport = document.getElementById("btn-import-data");
+  if (btnImport) {
+    btnImport.addEventListener("click", () => {
+      const jsonStr = prompt("Dán đoạn mã dữ liệu quán vào đây để đồng bộ từ máy khác sang:");
+      if (!jsonStr) return;
+      try {
+        const imported = JSON.parse(jsonStr.trim());
+        if (Array.isArray(imported) && imported.length > 0) {
+          saveLocalVendors(imported);
+          state.vendors = imported;
+          updateDistrictCounts();
+          applyFilters();
+          showToast(`✅ Đã đồng bộ thành công ${imported.length} quán!`);
+          document.getElementById("admin-modal").style.display = "none";
+        } else {
+          alert("Dữ liệu không đúng định dạng danh sách quán.");
+        }
+      } catch (err) {
+        alert("Lỗi cú pháp dữ liệu: " + err.message);
+      }
+    });
+  }
 
   // Review Form: Star Choice Clicks
   const starChoices = document.querySelectorAll("#star-picker .star-choice");
